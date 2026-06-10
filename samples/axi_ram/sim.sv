@@ -41,16 +41,31 @@ module sim;
       .bus(axi)
   );
 
+  import "DPI-C" function bit renodeDPIIsDllFresh();  
+  reg connection_established = 0;
+  reg post_restore_pending = 0;
+
   initial begin
-    runtime.connect_plus_args();
     renode.reset();
+    runtime.connect_plus_args();
   end
 
   always @(posedge clk) begin
-    // The receive method blocks execution of the simulation.
-    // It waits until receive a message from Renode.
-    renode.receive_and_handle_message();
-    if (!runtime.is_connected()) $finish;
+    if (renodeDPIIsDllFresh() && connection_established) begin
+      $display("Renode at %t: post-restore detected, re-issuing connect", $realtime);
+      runtime.connect_plus_args();
+      post_restore_pending = 1;
+    end
+
+    if (!connection_established && runtime.is_connected()) begin
+      connection_established = 1;
+      $display("Renode at %t: Connected using the socket based interface", $realtime);
+    end
+
+    if (post_restore_pending && runtime.is_connected()) post_restore_pending = 0;
+
+    if (connection_established) renode.receive_and_handle_message();
+    if (connection_established && !runtime.is_connected() && !post_restore_pending) $finish;
   end
 
   always #(ClockPeriod / 2) clk = ~clk;

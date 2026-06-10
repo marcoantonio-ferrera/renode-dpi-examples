@@ -2,3 +2,7 @@ using sysbus
 mach create
 
 machine LoadPlatformDescription $ORIGIN/platform.repl
+
+emulation ConnectToCoSimulation "machine-0" "my_connection" mainListenPort=42265 asyncListenPort=44787 address="127.0.0.1" limitBuffer=100 timeout=1000000 frequency=0
+
+connector Connect mem host.my_connection
